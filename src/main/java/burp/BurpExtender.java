@@ -24,8 +24,6 @@ public class BurpExtender implements IBurpExtender,IHttpListener ,IContextMenuFa
     PrintWriter stderr;
 
     private JPanel jPanel1;
-    private JButton jButton1;
-    private JLabel jLabel1;
 
     JTextField jTextFieldType;
     JTextField jTextFieldKey;
@@ -65,11 +63,13 @@ public class BurpExtender implements IBurpExtender,IHttpListener ,IContextMenuFa
                 // 将文本标签添加到面板
                 JLabel jLabelType = new JLabel("加密方式：");
                 jTextFieldType = new JTextField(10);
+                jTextFieldType.setText("AES");
                 jPanel1.add(jLabelType);
                 jPanel1.add(jTextFieldType);
 
                 JLabel jLabelKey = new JLabel("秘钥：");
                 jTextFieldKey = new JTextField(20);
+                jTextFieldKey.setText("TdV/7ODOaLQNnIn0");
                 jPanel1.add(jLabelKey);
                 jPanel1.add(jTextFieldKey);
 
@@ -90,12 +90,6 @@ public class BurpExtender implements IBurpExtender,IHttpListener ,IContextMenuFa
      */
     @Override
     public void processHttpMessage(int toolFlag, boolean messageIsRequest, IHttpRequestResponse messageInfo) {
-        stdout.println(
-                (messageIsRequest ? "HTTP request to " : "HTTP response from ") +
-                        messageInfo.getHttpService() +
-                        " [" + callbacks2.getToolName(toolFlag) + "]");
-
-        stderr.println("messageIsRequest:"+messageIsRequest);
 
         //获取请求头信息
 //        IRequestInfo iRequestInfo = callbacks2.getHelpers().analyzeRequest(messageInfo);
@@ -132,7 +126,7 @@ public class BurpExtender implements IBurpExtender,IHttpListener ,IContextMenuFa
 
     @Override
     public String getTabCaption() {
-        return "面板";
+        return "对称加密解密";
     }
 
     @Override
