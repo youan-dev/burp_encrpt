@@ -58,6 +58,7 @@ public class MenuItemListener implements ActionListener {
 
             //获取body，获取输入的key以及对称解密方式，然后解密后再塞回message
             helpers = callbacks.getHelpers();
+            //如果在url中的参数的值是 key=json格式的字符串 这种形式的时候，getParameters应该是无法获取到最底层的键值对的。
             IRequestInfo iRequestInfo = helpers.analyzeRequest(message);
             List<IParameter> parameters = iRequestInfo.getParameters();
 
@@ -77,17 +78,19 @@ public class MenuItemListener implements ActionListener {
                         //解密iParameter
                         String aesValue = AESUtil.encrypt(iParameter.getValue(), jTextFieldKey.getText());
                         aesValue = URLEncoder.encode(aesValue);
-                        aesValue = "111111111111111111111111111111111";
+                        //aesValue = "111111111111111111111111111111111";
                         //构造新的参数
-                        iParameter = helpers.buildParameter(iParameter.getName(), aesValue, iParameter.getType());
-                        newRequest = helpers.updateParameter(newRequest, iParameter);
+                        //当body是json格式的时候，helpers.analyzeRequest(messageInfo).getParameters()这个方法也可以正常获取到键值对；但是PARAM_JSON等格式不能通过updateParameter方法来更新。
+                        //如果在url中的参数的值是 key=json格式的字符串 这种形式的时候，getParameters应该是无法获取到最底层的键值对的。
+                        IParameter newParameter = helpers.buildParameter(iParameter.getName(), aesValue, IParameter.PARAM_BODY);
+                        //如果修改了header或者数修改了body，不能通过updateParameter，使用这个方法。
+                        newRequest = helpers.updateParameter(newRequest, newParameter);
+
                     }
                 }
             }
             message.setRequest(newRequest);
-
-
-            byte[] request = message.getRequest();
+            //byte[] request = message.getRequest();
 
             //发送到repeater中
             callbacks.sendToRepeater(message.getHttpService().getHost()
