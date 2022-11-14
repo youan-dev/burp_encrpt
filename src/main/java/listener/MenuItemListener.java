@@ -2,6 +2,7 @@ package listener;
 
 import burp.*;
 import utils.AESUtil;
+import utils.HelperPlus;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
@@ -58,14 +59,14 @@ public class MenuItemListener implements ActionListener {
     public void actionPerformed(ActionEvent event) {
         try {
             IHttpRequestResponse[] messages = invocation.getSelectedMessages();
-            IHttpRequestResponse message = messages[0];
+            IHttpRequestResponse messageInfo = messages[0];
 
             //获取body，获取输入的key以及对称解密方式，然后解密后再塞回message
 
             //如果在url中的参数的值是 key=json格式的字符串 这种形式的时候，getParameters应该是无法获取到最底层的键值对的。
-            IRequestInfo iRequestInfo = helpers.analyzeRequest(message);
+            IRequestInfo iRequestInfo = helpers.analyzeRequest(messageInfo);
             //获取header
-            List<String> headers = iRequestInfo.getHeaders();
+            //List<String> headers = iRequestInfo.getHeaders();
 
             List<IParameter> parameters = iRequestInfo.getParameters();
 
@@ -73,8 +74,12 @@ public class MenuItemListener implements ActionListener {
             stdout.println(jTextFieldType.getText());
             stdout.println(jTextFieldKey.getText());
 
+            HelperPlus getter = new HelperPlus(helpers);
+            List<String> headers = getter.getHeaderList(true,messageInfo);
 
-            byte[] newRequest=message.getRequest(); //设置一个数组，用于存放每次更新参数后的 message.getRequest()
+            byte[] body = HelperPlus.getBody(true, messageInfo);
+
+            //byte[] newRequest=messageInfo.getRequest(); //设置一个数组，用于存放每次更新参数后的 message.getRequest()
             if("AES".equals(jTextFieldType.getText())){
                 for(IParameter iParameter:parameters ){
                     stdout.println("iParameter.getType():"+iParameter.getType());
@@ -85,37 +90,39 @@ public class MenuItemListener implements ActionListener {
                         //解密iParameter
                         String aesValue = AESUtil.encrypt(iParameter.getValue(), jTextFieldKey.getText());
                         aesValue = URLEncoder.encode(aesValue);
-                        //aesValue = "111111111111111111111111111111111";
+
+                        //String oldchar = getter.getParameterByKey(messageInfo, para.getName()).getValue();
+                        String newBody = new String(body).replace(iParameter.getValue(), aesValue);
+
+                        body = newBody.getBytes();
+
                         //构造新的参数
                         //当body是json格式的时候，helpers.analyzeRequest(messageInfo).getParameters()这个方法也可以正常获取到键值对；但是PARAM_JSON等格式不能通过updateParameter方法来更新。
                         //如果在url中的参数的值是 key=json格式的字符串 这种形式的时候，getParameters应该是无法获取到最底层的键值对的。
-                        IParameter newParameter = helpers.buildParameter(iParameter.getName(), aesValue, IParameter.PARAM_BODY);
+                        //IParameter newParameter = helpers.buildParameter(iParameter.getName(), aesValue, IParameter.PARAM_BODY);
                         //如果修改了header或者数修改了body，不能通过updateParameter，使用这个方法。
                         //newRequest = helpers.updateParameter(newRequest, newParameter);
-                        newRequest = this.helpers.removeParameter(newRequest, iParameter);
-                        newRequest = this.helpers.addParameter(newRequest, newParameter);
+                        //newRequest = this.helpers.removeParameter(newRequest, iParameter);
+                        //newRequest = this.helpers.addParameter(newRequest, newParameter);
 
                     }
                 }
             }
 
-            IRequestInfo reqInfo2 = helpers.analyzeRequest(newRequest);
-            String tmpreq = new String(newRequest);
-            String messageBody = new String(tmpreq.substring(reqInfo2.getBodyOffset())).trim();
-            newRequest = this.helpers.buildHttpMessage(headers, messageBody.getBytes());
+            byte[] new_Request = helpers.buildHttpMessage(headers, body);
+            messageInfo.setRequest(new_Request);
 
-            message.setRequest(newRequest);
             //byte[] request = message.getRequest();
 
             //发送到repeater中
-            callbacks.sendToRepeater(message.getHttpService().getHost()
-                    , message.getHttpService().getPort()
+            callbacks.sendToRepeater(messageInfo.getHttpService().getHost()
+                    , messageInfo.getHttpService().getPort()
                     , true
-                    ,message.getRequest()
+                    ,messageInfo.getRequest()
                     ,"对称加密解密"
             );
 
-            String currentShortUrl = message.getHttpService().toString();
+            String currentShortUrl = messageInfo.getHttpService().toString();
             stdout.println(currentShortUrl);
 
 
@@ -123,68 +130,6 @@ public class MenuItemListener implements ActionListener {
             callbacks.printError(e.getMessage());
         }
     }
-
-    /**
-     * 更新json类型的参数
-     * @param _request
-     * @param headers
-     * @param _params
-     * @param _do_enc
-     * @return byte[] 数组
-     */
-//    public byte[] update_req_params_json(byte[] _request, List<String> headers, String[] _params, Boolean _do_enc){
-//        for(int i=0; i< _params.length; i++){
-//            IParameter _p = this.helpers.getRequestParameter(_request, _params[i]);
-//            if (_p == null || _p.getName().toString().length() == 0){ continue; }
-//
-//            String _str = "";
-///*            if(_do_enc) {
-//                _str = this.do_encrypt(_p.getValue().toString().trim());
-//            }
-//            else {
-//                _str = AESUtil.decrypt(_p.getValue().toString().trim());
-//            }*/
-//
-//            try {
-//                _str = AESUtil.decrypt(_p.getValue().toString().trim(),"AES");
-//            } catch (Exception e) {
-//                e.printStackTrace();
-//            }
-//
-//
-//            //if(this._is_ovrr_req_body){
-//            if(true){
-//                if (!headers.contains(this._Header)) { headers.add(this._Header); }
-//                _request = this.helpers.buildHttpMessage(headers, _str.getBytes());
-//                return _request;
-//            }
-//
-///*            if(this._is_ovrr_res_body){
-//                if (!headers.contains(this._Header)) { headers.add(this._Header); }
-//                _request = this.helpers.buildHttpMessage(headers, _str.getBytes());
-//                return _request;
-//            }*/
-//
-//
-//            IRequestInfo reqInfo = helpers.analyzeRequest(_request);
-//            String tmpreq = new String(_request);
-//            String messageBody = new String(tmpreq.substring(reqInfo.getBodyOffset())).trim();
-//
-//            int _fi = messageBody.indexOf(_params[i]);
-//            if(_fi < 0) { continue; }
-//
-//            _fi = _fi + _params[i].length() + 3;
-//            int _si = messageBody.indexOf("\"", _fi);
-////            print_output("update_req_params_json", _str);
-////            print_output("update_req_params_json", messageBody.substring(0, _fi));
-////            print_output("update_req_params_json", messageBody.substring(_si, messageBody.length()));
-//            if (!headers.contains(this._Header)) { headers.add(this._Header); }
-//            messageBody = messageBody.substring(0, _fi) + _str + messageBody.substring(_si, messageBody.length());
-//            _request = this.helpers.buildHttpMessage(headers, messageBody.getBytes());
-//
-//        }
-//        return _request;
-//    }
 
 
 }
